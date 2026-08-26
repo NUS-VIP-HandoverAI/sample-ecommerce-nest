@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductCategory {
+  electronics
+  fashion
+  home
+  beauty
+  sports
+}
+
+enum Currency {
+  SGD
+}
+
+enum LoyaltyTier {
+  bronze
+  silver
+  gold
+}
+
+enum PaymentMethod {
+  card
+  paynow
+  bank_transfer
+}
+
+enum OrderStatus {
+  pending
+  paid
+  shipped
+}
+
+model Product {
+  id          String         @id
+  name        String
+  description String
+  category    ProductCategory
+  price       Decimal        @db.Decimal(10, 2)
+  currency    Currency       @default(SGD)
+  stock       Int
+  featured    Boolean        @default(false)
+  imageUrl    String
+  sku         String         @unique
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+}
+
+model Customer {
+  id           String      @id
+  name         String
+  email        String      @unique
+  loyaltyTier  LoyaltyTier @default(bronze)
+  cart         Cart?
+  orders       Order[]
+}
+
+model Cart {
+  customerId String    @id
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  cart      Cart     @relation(fields: [cartId], references: [customerId], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+}
+
+model Order {
+  id              String         @id
+  customerId      String
+  shippingAddress String
+  paymentMethod   PaymentMethod
+  status          OrderStatus    @default(pending)
+  total           Decimal        @db.Decimal(10, 2)
+  createdAt       DateTime       @default(now())
+  customer        Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items           OrderItem[]
+
+  @@index([customerId, createdAt])
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String
+  name       String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  lineTotal  Decimal  @db.Decimal(10, 2)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+}
